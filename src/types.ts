@@ -203,6 +203,28 @@ export abstract class ZodType<
     );
   }
 
+  // The instanceof operator does not work properly when ts-mongo is imported from another library
+  // https://stackoverflow.com/questions/59265098/instanceof-not-work-correctly-in-typescript-library-project
+  // This alternative implementation checks the constructor names of the object and its inherited classes
+  static [Symbol.hasInstance](instance: unknown) {
+    if (
+      typeof instance !== "object" ||
+      instance === null ||
+      !("_def" in instance)
+    )
+      return false;
+
+    // Also check inherited prototypes
+    const getPrototypeChain = (prototype: any): any[] => {
+      if (!prototype) return [];
+      return [prototype, ...getPrototypeChain(prototype.__proto__)];
+    };
+
+    const prototypes = getPrototypeChain(instance);
+    const className = this.name;
+    return prototypes.some((proto) => proto.constructor.name === className);
+  }
+
   _processInputParams(input: ParseInput): {
     status: ParseStatus;
     ctx: ParseContext;
